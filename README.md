@@ -1,6 +1,6 @@
-# MCV Browser
+# MCV Browser (!BETA VERSION!)
 
-## Command-First Browser That Understands Your Intention
+## Command-First Browser That Understands Your Intention 
 
 ---
 

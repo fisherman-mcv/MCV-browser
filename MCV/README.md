@@ -1,370 +1,367 @@
-# MCV Browser (Qt WebEngine)
+# MCV Browser (Swift + WKWebView)
 
-MCV is a macOS-focused browser shell built with Qt Widgets + Qt WebEngine, with a command-first workflow (`Cmd+E`), floating tab UI, security modes, and a global Spotlight-like overlay.
+Technical README for the release-ready non-experimental package.
 
-## Current Build Targets
+## Stack
 
-This repository currently has two qmake project files:
+- SwiftUI + AppKit UI
+- WKWebView (WebKit) browser engine
+- C++ command helper (`helper.cpp`)
+- zsh build script (`build.cpp`)
 
-- `SpotlightBrowser_experimental.pro` -> builds `MCVExperimental`
-- `SpotlightBrowser.pro` -> builds `MCV`
+This project is not based on Qt WebEngine.
 
-Important: **both `.pro` files currently compile `SpotlightBrowser_experimental.cpp`**.
+## Main files
 
-## Key Features
+- `main.swift`
+- `helper.cpp`
+- `build.cpp`
 
-- Command overlay (`Cmd+E`) with history/autocomplete/aliases.
-- Floating tabs panel + circular tab wheel.
-- Favorites (pinned domains), saved links, per-session tab restore.
-- Security modes: `classic`, `safe`, `secure`.
-- Global system overlay on macOS (`Option+Space`).
-- Built-in tools: calc, translate, perf diagnostics, focus mode, keychain autofill.
-- UI controls: tint/theme/font/opacity/logo presets.
+## Runtime architecture
 
-## Repository Layout
+- `BrowserStore` in `main.swift` is the main runtime state and behavior layer.
+- `BrowserRootView` renders window UI, chrome, overlays, panels, and routes keyboard/pointer events.
+- `BrowserTab` wraps each `WKWebView` plus metadata and observers.
+- `CommandHelperClient` executes `mcv_command_helper` and maps JSON actions to Swift handlers.
+- `MiniMCVPanelController` and `MiniMCVPanelModel` implement the `Opt+Space` mini window.
+- `WebExtensionManager` + bridge classes implement unpacked/Web Store extension install and runtime injection.
+- `SecurityProfileRuntime` provides profile isolation per security mode.
+- `PerformanceMonitorModel` drives the terminal-style performance window.
 
-- `SpotlightBrowser_experimental.cpp` - main implementation used by current builds.
-- `SpotlightBrowser.cpp` - older/base variant source kept in repo.
-- `SpotlightBrowser_experimental.pro` - target `MCVExperimental`.
-- `SpotlightBrowser.pro` - target `MCV` (currently same source as experimental).
-- `SpotlightBrowser_experimental.qrc` - embedded assets for logos/resources.
-- `logos/` - custom logo PNG presets.
-- `AppIcon.icns` - app icon bundle asset.
+## Keyboard shortcuts
 
-## Requirements
+### Global shortcut
 
-- macOS
-- Xcode Command Line Tools
-- Qt 6 with WebEngine modules
+- `Opt+Space`: toggle Mini MCV panel (Carbon global hotkey).
 
-Typical install:
+### Core window shortcuts
 
-```bash
-brew install qt qt-webengine qt-positioning
-export PATH="/opt/homebrew/opt/qt/bin:$PATH"
-```
+- `Cmd+E`: command overlay (mixed mode: command or search/address).
+- `Ctrl+E`: disabled (consumed, no action).
+- `Cmd+L`: focus smart bar.
+- `Cmd+U`: focus current page content (removes focus from text inputs/overlays).
+- `Cmd+F`: open find overlay.
+- `Cmd+I`: open devtools.
+- `Cmd+J`: open devtools console.
+- `Cmd+D`: toggle browser chrome visibility.
+- `Cmd+R`: reload.
+- `Opt+R`: hard reload.
+- `Cmd+[` and `Cmd+]`: back/forward.
+- `Cmd+T`: new tab (or open main window from music window).
+- `Cmd+W`: close current tab, and hide window if only one tab remains.
+- `Cmd+Shift+T`: restore most recently closed tab.
+- `Cmd+Shift+D`: duplicate tab.
+- `Cmd+Shift+B`: add current page to bookmarks.
+- `Cmd+Y`: toggle history panel.
+- `Cmd+B`: toggle bookmarks panel.
+- `Cmd+S`: toggle Saved navigator overlay.
+- `Cmd+G`: open tab wheel.
+- `Cmd+O`: open music wheel.
+- `Cmd+1..9`, `Cmd+0`: switch regular tabs by index.
+- `Cmd+Left/Right` and `Cmd+Up/Down`: cycle regular tabs.
+- `Cmd+,`: open Settings (standard macOS settings shortcut).
 
-## Build and Run
+### Option-only shortcuts
 
-Build experimental:
+- `Opt+F`: copy current page URL.
+- `Opt+1..9`, `Opt+0`: open bookmark by default index.
+- `Opt+Left/Right` and `Opt+Up/Down`: cycle bookmark tabs.
+- `Opt+<alnum>` custom bookmark shortcuts:
+- Input accepts one alphanumeric symbol.
+- Trigger works only with exact `Option` modifier.
 
-```bash
-qmake SpotlightBrowser_experimental.pro
-make -j"$(sysctl -n hw.ncpu)"
-./MCVExperimental
-```
+### Temporary/system shortcuts
 
-Build MCV target:
+- `Ctrl+Q`: traffic light tuner overlay.
+- `Ctrl+R`: open performance window.
+- `Ctrl+W`: reset browser to first-launch state.
 
-```bash
-qmake SpotlightBrowser.pro
-make -j"$(sysctl -n hw.ncpu)"
-./MCV
-```
+### Escape behavior
 
-## Update `.app` Bundle (macOS)
+- If link hint mode active: close hint mode.
+- If mini panel active: close mini panel.
+- If command overlay active: close overlay.
+- If tab wheel active: cancel wheel selection.
+- If music wheel active: cancel wheel selection.
+- If no overlay/panel active: start Vimium-style link hints.
 
-If wrapper app already exists, replace inner executable and re-sign:
+## Overlay and panel keyboard control
 
-```bash
-cp -f MCVExperimental "MCV Experimental.app/Contents/MacOS/MCVExperimental"
-codesign --force --deep --sign - "MCV Experimental.app"
-```
+### Command overlay
 
-For `MCV` target:
+- `Up` / `Down`: move suggestion selection.
+- `Enter`: run selected suggestion or typed input.
+- `Tab`: toggle command-armed state in mixed mode.
 
-```bash
-cp -f MCV "MCV.app/Contents/MacOS/MCV"
-codesign --force --deep --sign - "MCV.app"
-```
+### Find overlay (`Cmd+F`)
 
-## Keyboard Shortcuts (Current)
+- `Up` / `Down`: move match suggestion.
+- `Enter`: activate selected suggestion.
+- `Esc`: close and clear highlights.
 
-### Core
+### Saved navigator (`Cmd+S`)
 
-- `Cmd+E` - open/close command overlay
-- `Cmd+S` - DevTools panel
-- `Cmd+F` - copy current URL
-- `Cmd+G` - tab wheel
-- `Cmd+T` - new empty tab
-- `Cmd+W` - close tab
-- `Cmd+N` - new window
-- `Cmd+R` - reload
-- `Cmd+[` / `Cmd+]` - back / forward
-- `Cmd+Shift+[` / `Cmd+Shift+]` - previous / next tab
-- `Cmd+Q` - hard exit process
+- `Up` / `Down`: selection.
+- `Right` or `Enter`: open folder/link.
+- `Left` or `Backspace`: go to parent folder.
+- `Delete` / `Forward Delete` / `Cmd+Delete`: remove selected entry.
+- `Mouse wheel`: moves selection.
+- Supports drag and drop of saved links between folders and root.
 
-### Option shortcuts
+### Bookmarks panel
 
-- `Opt+R` - hard reload (bypass cache)
-- `Opt+I` - DevTools
-- `Opt+J` - Console (DevTools Console panel)
-- `Opt+F` - find in page
-- `Opt+T` - run `restore` (restore saved session tabs)
-- `Opt+Up` / `Opt+Down` - previous / next tab
-- `Opt+1..9`, `Opt+0` - jump to regular tab 1..10
-- `Opt+Tab` / `Opt+Shift+Tab` - open tabs panel
-- `Opt+Space` - toggle system overlay (global hotkey on macOS)
+- `Up` / `Down`: selection.
+- `Enter`: open selected bookmark.
+- Hover syncs current keyboard selection.
+- Header shows current bookmark position as `Current: X/N` when active tab is bookmarked.
 
-### Favorites / Tab switch
+### Tab wheel (`Cmd+G`)
 
-- `Cmd+1..9`, `Cmd+0` - open favorite by key
-- `Cmd+\\`, `Cmd+\``, `Cmd+Ї`, `Cmd+Ё` - tabs panel fallback by layout
+- Opens around cursor.
+- `Scroll` or `Arrow keys`: cycle tab target.
+- `Enter`, mouse release, or releasing `Cmd`: accept selection.
+- `Esc`: cancel.
 
-### Tab wheel controls
+### Music wheel (`Cmd+O`)
 
-- `Cmd+G` - open/close wheel
-- arrows / `Tab` - move selection
-- mouse wheel - rotate selection
-- `Enter` or `Space` - activate
-- `Esc` - close
+- Opens around cursor.
+- Mouse direction selects action sector.
+- `Scroll` adjusts volume delta.
+- Mouse release or releasing `Cmd`: execute selection.
+- `Esc`: cancel.
+- Center node shows current title/subtitle/progress/artwork and mood state.
 
-## Command Reference (Experimental)
+## Command runtime
 
-Run `help` inside MCV for full in-app help. Main commands:
+Command execution path:
 
-### Navigation
+- `Cmd+E` and smart bar command mode call `applyBridge(...)`.
+- Local handlers run first for:
+- `ext ...` (extension local command set).
+- `alias ...` (local alias CRUD and command chaining).
+- Alias expansion supports `/cmd1/cmd2/...` chain parsing.
+- Remaining commands go to C++ helper (`mcv_command_helper`) which returns JSON actions.
+- Swift side executes action handlers (`navigate`, `reload_page`, `open_settings`, `set_theme`, and others).
+
+### Command groups
+
+Navigation:
 
 - `open <url>`
 - `reload`
 - `back`
 - `forward`
 - `home`
-- `new`
-- `close`
-- `tabs`
-- `restore`
+- `new | newtab | t`
+- `private`
+- `close | closetab | w`
+- `reset | resettabs | tabsreset`
 
-### Search / Sites
+Search and sites:
 
 - `g <query>`
-- `ddg <query>`
-- `yt <query>`
+- `ddg <query>` or `search <query>`
+- `yt <query>` or `youtube <query>`
+- `wiki <query>`
+- `wiki <lang> <query>` with language aliases `e r u i f s c`
 - `tw <user>`
 - `x <user>`
-- `gh <user>`
-- `ghr <owner/repo>`
-- `c [prompt]`
-- `gmail`
-- `classroom`
-- `tv <symbol> [tf]`
-- `bn btc|eth`
+- `gh <user>` or `github <user>`
+- `ghr <user/repo>`
+- `tv <symbol> [1m|5m|15m|1h|4h|1d]`
+- `bn <symbol>`
 - `coinglass`
 - `cmc btc|eth`
 - `fear`
 - `json <url>`
+- `c [prompt]` (open ChatGPT, optionally with query)
 
-### Tools
+Tools and browser actions:
 
-- `calc <expr>`
-- `tran <text>`
-- `tran <from> <to> <text>`
-- `translate ...` (alias)
-- `speed x1.25`
-- `scroll x0.5`
-- `perf status|gpu|fps [sec]`
-- `downloads [clear]`
+- `book | bookmark | pin`
+- `bookmarks | bm`
 - `history [sites|cmds|clear|del N]`
-- `focus 30m|42m|2h`
-- `focus off`
-- `focus set <folder[,folder]>`
+- `downloads [clear]`
 - `clear`
 - `dev`
-- `scream` / `egg`
+- `console`
+- `settings`
+- `copy | copylink`
+- `tab <number>`
+- `speed x1.5`
+- `scroll x0.5`
+- `notify <text>` or `notify <title>|<message>`
 
-### UI / Appearance
+Interface:
 
 - `dark`
 - `theme dark|light|off`
-- `opacity <0.05-1.0>`
-- `tabopacity <0.05-1.0>`
-- `tint <color>|system|off`
-- `tint img on|off`
-- `font <name>|off`
-- `logo <preset>`
-- `logo list`
-- `blur on|off`
-- `suggest on|off`
+- `colors | color`
 - `spot`
 - `float`
 - `minimal`
-- `bar`
 
-### Customization
-
-- `alias <key> <expansion>`
-- `alias`
-- `fav`
-- `fav list`
-- `fav open <key>`
-- `profile trade|dev|minimal`
-
-### Security
+Security:
 
 - `mode classic|safe|secure`
-- `js on|off` (secure mode)
-- `clearonexit add|del <host>`
-- `clearonexit list`
-- `wipe`
-- `ua mobile|desktop`
-- `proxy on|off`
+- `js on|off` (secure mode only)
+- `clearonexit add <host>`
+- `clearonexit del <host>`
+- `clearonexit list` (safe mode only)
+- `wipe` and `pass ...` currently return preview status
 
-### Passwords (Keychain)
+Pro settings:
 
-- `pass`
-- `pass save [host]`
-- `pass set <host> <user> <pass>`
-- `pass fill [host]`
-- `pass del <host>`
-- `pass list`
-- `pass auto on|off`
-- `pass ignore add|del <host>`
-- `pass ignore list`
+- `pro`
+- `pro opacity <0.05-1.0>`
+- `pro blur on|off`
+- `pro blur mini on|off` (status-only placeholder response)
+- `pro suggest on|off`
+- `pro smart on|off`
+- `pro radius <int>`
+- `pro cuts [edit|path|reload|reset]`
+- `pro reset`
 
-## Security Modes
+Music:
 
-### classic
+- `music`
+- `music stop|pause|toggle|next|prev`
+- `music favorite`
+- `music playlist|radio`
+- `music find|search [query]`
+- `music focus [coding|trading|night|resonance]`
+- `music play <query>`
 
-- Standard profile behavior.
-- Persistent cookies/cache/history/downloads.
+Ollama and AI:
 
-### safe
+- `ollama on|off|status|test|chat <message>`
+- Helper supports `ai <prompt>`, but `Cmd+E` blocks direct `ai` and shows a message.
+- Intended path for `ai` is Mini MCV.
 
-- Dedicated `SafeProfile`.
-- Disk persistence enabled.
-- Additional filtering + `clearonexit` support.
+Extensions:
 
-### secure
+- `ext list|ls|panel`
+- `ext install <folder|url|id>`
+- `ext webstore <url|id>`
+- `ext enable <id>`
+- `ext disable <id>`
+- `ext remove <id>`
+- `ext popup <id>`
+- `ext options <id>`
+- `ext window <id>` (opens popup/options in separate app window)
+- `ext grant <id> <permission>`
+- `ext revoke <id> <permission>`
+- `ext reload`
+- `ext logs`
 
-- Dedicated `SecureProfile`.
-- No persistent cookies.
-- No disk cache.
-- Stricter request/resource blocking and memory-only permissions.
+Aliases:
 
-Switching mode opens a new browser window in the selected mode.
+- `alias` shows summary
+- `alias <name> <expression>` saves alias
+- `alias del <name>` (also `remove`, `rm`, `delete`)
+- `alias clear`
+- Chain format supported, for example `alias tv /new/open https://tradingview.com/`
+- Alias recursion depth limit is `8`.
 
-## Translation Behavior
+Help:
 
-`tran` uses Google Translate HTTP endpoint (`translate.googleapis.com`).
+- `help`
+- `help <cmd>`
+- `help ext`
+- Help opens a native help tab rendered by app UI, not a web page.
 
-Output format is:
+## Mini MCV (`Opt+Space`)
 
-```text
-Translate (ru → en)
+- Supports instant calculator:
+- `calc <expr>`
+- `=<expr>`
+- raw arithmetic like `2+2`
+- Supports instant translation:
+- `tran <text>`
+- `tran <from> <to> <text>`
+- aliases: `e f r u s c a i`
+- default direction:
+- Cyrillic text defaults to `ru -> en`
+- Latin text defaults to `en -> ru`
+- Supports local AI:
+- `ai <prompt>`
+- uses selected Ollama model from Settings.
+- Can open web preview when input resolves to URL/search.
 
-<translated text>
-```
+## Security modes
 
-Auto direction:
+`classic`:
 
-- Cyrillic detected -> `ru -> en`
-- otherwise -> `en -> ru`
+- default profile and storage behavior
+- persistent cookies/cache/history/downloads
+- no extra request filtering
 
-Language short codes:
+`safe`:
 
-- `e` English (`en`)
-- `f` French (`fr`)
-- `r` Russian (`ru`)
-- `u` Ukrainian (`uk`)
-- `s` Spanish (`es`)
-- `c` Chinese (`zh-CN`)
-- `a` Arabic (`ar`)
-- `i` Italian (`it`)
+- separate profile datastore (`SafeProfile` identifier on supported macOS)
+- persistent storage
+- download confirmation dialog on download attempts
+- `clearonexit` host list available and applied on app termination
 
-## First-Launch Page
+`secure`:
 
-First run intro/start page is embedded in `SpotlightBrowser_experimental.cpp` as `kStartPageHtml`.
+- non-persistent datastore (`WKWebsiteDataStore.nonPersistent()`)
+- separate process pool
+- blocks top-level `http` and `ws` navigations
+- injects secure shield script that blocks or restricts:
+- insecure or cross-origin `fetch`
+- insecure or cross-origin `XMLHttpRequest`
+- insecure or cross-origin `WebSocket`
+- insecure or cross-origin `Worker` and `SharedWorker`
+- insecure `sendBeacon`
+- `Notification.requestPermission` forced to denied
+- `serviceWorker.register` rejected
+- `PushManager.subscribe` rejected
+- insecure or cross-origin script `src` nodes removed via mutation observer
+- per-host JavaScript policy controlled by `js on|off`
 
-After first run, key `ui/firstLaunchIntroShown` is persisted in app settings.
+Mode switch persists in settings and opens a new browser window to apply config.
 
-To force first-run page again:
+## WebExtensions implementation
+
+- Installs unpacked folder extensions and Web Store CRX sources.
+- Web Store install path:
+- parse extension id from URL/id input
+- download CRX from Google update endpoint
+- extract ZIP payload
+- unpack and install into app support
+- Uses compatibility tiers:
+- tier `A`: content-script-focused manifests
+- tier `B`: background/action/browser_action present
+- tier `C`: high-risk APIs like `webRequestBlocking`, `debugger`, `nativeMessaging`
+- Runtime bridge includes:
+- content script injection through `WKUserScript`
+- JS bridge shim for selected `chrome.*` APIs
+- background runtime using JavaScriptCore
+- permission gate with grant/revoke overrides
+- Extensions panel supports:
+- install by id/url/path
+- rename
+- copy id
+- open popup/options/window
+- enable/disable
+- remove
+- install progress bar and status text
+
+## First-run and hints
+
+- Hint lifecycle uses launch counter and auto-hides hints after `3` launches by default.
+- Hints can be forced back on in settings.
+
+## Build
 
 ```bash
-defaults delete com.local.MCV "ui/firstLaunchIntroShown" 2>/dev/null
-defaults delete com.Local.MCV "ui/firstLaunchIntroShown" 2>/dev/null
+./build.cpp
 ```
 
-## Persistence
+## Package build output
 
-Stored via `QSettings` (organization `Local`, app name `MCV`).
-
-Examples:
-
-- UI prefs (theme/opacity/tint/font/logo)
-- sessions (`session/tabs`, `session/current`)
-- aliases (`terminal_aliases`)
-- favorites (`terminal_favorites`)
-- download/search history
-- mode-specific settings (`safe/*`, `secure/*`)
-
-## Favorites Format and Reserved Keys
-
-Format:
-
-```text
-1 - https://chatgpt.com
-2 - https://youtube.com
-a - https://x.com
-```
-
-Rules:
-
-- key is one char (`0-9` or `A-Z`)
-- separators: `-`, `:`, `=`
-- duplicate key overwrites previous (warning shown)
-
-Reserved keys are blocked:
-
-- `e`, `t`, `w`, `n`, `r`, `s`
-
-## Troubleshooting
-
-### App won’t open
-
-Re-sign bundle:
-
-```bash
-codesign --force --deep --sign - "MCV Experimental.app"
-```
-
-### `permission denied` when launching `.app`
-
-`.app` is a directory bundle. Run the inner executable:
-
-```bash
-"MCV Experimental.app/Contents/MacOS/MCVExperimental"
-```
-
-### Global `Opt+Space` does not trigger
-
-Likely macOS input-source shortcut conflict. Rebind system shortcut or change hotkey in code.
-
-### Restore did nothing
-
-- Check there is a saved session (`session/tabs` exists).
-- Use `restore` command (or `Opt+T`) after tabs were saved.
-
-## Open Source Checklist
-
-Recommended to publish:
-
-- `README.md`
-- `SpotlightBrowser_experimental.cpp`
-- `SpotlightBrowser.cpp`
-- `SpotlightBrowser_experimental.pro`
-- `SpotlightBrowser.pro`
-- `SpotlightBrowser_experimental.qrc`
-- `logos/`
-- `AppIcon.icns`
-- `LICENSE`
-
-Do not publish:
-
-- binaries (`MCV`, `MCVExperimental`, etc.)
-- `*.o`, `moc_*`, `qrc_*`, `Makefile`
-- `*.app`, `*.dmg`
-- local env files, secrets, tokens
-
----
-
-If behavior changes in code, update this README in the same commit.
+- `MCV` binary
+- `MCV.app`
+- `mcv_command_helper`
+- `MCV_installer.dmg`

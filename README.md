@@ -15,6 +15,15 @@ what if a browser could understand **what you actually want to do**, not just op
 
 ---
 
+# Links
+- [Releases](https://github.com/fisherman-mcv/MCV-browser/releases)
+- [Issues](https://github.com/fisherman-mcv/MCV-browser/issues)
+- [Discussions](https://github.com/fisherman-mcv/MCV-browser/discussions)
+- [Security](https://github.com/fisherman-mcv/MCV-browser/security/policy)
+- [Changelog](https://github.com/fisherman-mcv/MCV-browser/blob/main/CHANGELOG.md)
+
+---
+
 ## the idea
 
 For many years I tried different browsers.
